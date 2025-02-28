@@ -45,6 +45,8 @@ class AOExpGrad(object):
         u,_x,v =np.linalg.svd(self.x,full_matrices=False,compute_uv=True)
         z=np.matmul(u*(alpha*np.log(_x / beta + 1.0))[..., None, :],v) - self.t*g+self.t*self.h-(self.t+1)*g
         u,_z,v =np.linalg.svd(z,full_matrices=False,compute_uv=True)
+        self.u = u
+        self.v = v
         _y=beta*np.exp(_z/alpha)-beta
         if self.l2 == 0.0:
             x_val = beta * np.exp(np.maximum(np.log(_y/beta+1.0) - self.l1*self.t / alpha,0.0)) - beta
@@ -56,6 +58,7 @@ class AOExpGrad(object):
             x_val = np.where(abc>=15.0,np.log(abc)-np.log(np.log(abc))+np.log(np.log(abc))/np.log(abc), lambertw( np.exp(abc), k=0).real )/b-a
             #x_val = lambertw(a * b * np.exp(a * b - c), k=0).real / b - a
         y = np.matmul(u*x_val[..., None, :], v)
+        self.sigma = x_val
         self.x = np.clip(y, self.lower, self.upper)
         self.y=(self.t/self.beta)*self.x+((self.beta-self.t)/self.beta)*self.y
 
@@ -73,6 +76,6 @@ def fmin(func, func_p,x0, upper,lower,l1=1.0,l2=1.0, maxfev=50,callback=None, ep
                           nfev=fev, success=(y is not None))
                 callback(res)
         fev+=1
-    return OptimizeResult(func=func(y), x=y, nit=nit,
+    return OptimizeResult(func=func(y), x=(y,alg.sigma,alg.u,alg.v), nit=nit,
                           nfev=fev, success=(y is not None))
 
